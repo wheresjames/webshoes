@@ -169,6 +169,9 @@ class WebShoesApp():
 
         t = time.time()
         ver = self.evh[ev]['ver']
+        r = self.evh[ev]['last']
+        if isinstance(r, pb.Bag):
+            r = self.evh[ev]['last'].as_dict()
         ruids = []
         for k,v in self.evh[ev]['cb'].items():
             if v['ver'] != ver:
@@ -178,7 +181,7 @@ class WebShoesApp():
                                         'uid': k,
                                         'ver':ver,
                                         't':t,
-                                        'r':self.evh[ev]['last'].as_dict()
+                                        'r':r
                                     }):
                     ruids.append(k)
 
