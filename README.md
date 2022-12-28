@@ -11,7 +11,7 @@ Quickly create a web service supporting both websockets and http.
         return {'result': int(q.a) + int(q.b)}
 
     wsa = ws.WebShoesApp('127.0.0.1', 15801, {'verbose': True})
-    wsa.register('cmd', 'cmd', 'q', 'evt', 'r', {
+    wsa.register('cmd', 'cmd', 'args', 'event', 'reply', {
             'add': cmdAdd
         })
     wsa.start()
@@ -50,13 +50,13 @@ Quickly create a web service supporting both websockets and http.
 
     # Register the callback function
     #             ----------------------------------> The root for http requests
-    #             |      ---------------------------> The variable in websocket requests
+    #             |      ---------------------------> The variable in websocket request
     #             |      |                              containing the command name
-    #             |      |      --------------------> The variable in websocket requests
+    #             |      |      --------------------> The variable in websocket request
     #             |      |      |                       containing the function arguments
-    #             |      |      |       ------------> The variable in websocket requests
+    #             |      |      |       ------------> The variable in websocket request
     #             |      |      |       |               containing the event name
-    #             |      |      |       |        ---> Variable in replys to put return data
+    #             |      |      |       |        ---> Variable in reply to put return data
     #             |      |      |       |        |
     wsa.register('cmd', 'cmd', 'args', 'event', 'reply', {
             'add': cmdAdd

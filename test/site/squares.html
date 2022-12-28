@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+
+<div id="PgExists_Home" style="display:none"></div>
+
+<style>
+    body
+    {
+        height: 100vh;
+        width: 100vw;
+        background: #000;
+        color: #aaa;
+        margin: 0;
+        font-family: "Arial";
+        font-size: 1em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        overflow-x: hidden;
+    }
+
+    #grid
+    {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 40px;
+        bottom: 40px;
+    }
+
+    .grid-item
+    {
+        position: absolute;
+        margin: 0;
+        padding: 0;
+    }
+
+    .grid-inset
+    {
+        margin: 0;
+        padding: 0;
+        background: #444;
+        width: 100%;
+        height: 100%;
+        border: 1px solid #000;
+    }
+</style>
+
+<div id="grid"></div>
+
+<script id="tmpl-grid-item" type="text/x-template">
+    <div class="grid-item">
+        <div class="grid-inset centerall">
+        </div>
+    </div>
+</script>
+
+<script src="/webshoes/webshoes.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+
+<script>
+
+    $.ajaxPrefilter(function( options, original_Options, jqXHR ){options.async = true;});
+    d3.selection.prototype.appendHtml =
+        d3.selection.prototype.enter.appendHtml = function(t) {
+            return this.select(function() {
+                return this.appendChild(document.importNode(new DOMParser().parseFromString(t, 'text/html').body.childNodes[0], true));
+            });
+        };
+
+    var xxLink = ((window.location.protocol === "https:") ? "wss:" : "ws:") + "//" + window.location.host + '/api';
+    console.log(`Connecting to : ${xxLink}`);
+    var xx = WebShoes({url: xxLink, cb: (status, msg) => console.log(status, msg ? msg : ' ') });
+
+    // var pageId = '#PgExists_Home';
+    var pageId = xx.addPageId('#PgExists_Home');
+    console.log(`PageId: ${pageId}`);
+
+    // Update grid
+    function updateGrid(m)
+    {
+        let data = [];
+        for (let y = 0; y < 10; y++)
+            for (let x = 0; x < 10; x++)
+                data.push({id: `${x}-${y}`, x: x, y: y, v: parseInt(m[y*10+x])});
+
+        let lst = d3.select("#grid")
+                        .selectChildren("div")
+                            .data(data, d=> d.id);
+
+        lst.exit()
+            .remove();
+
+        lst = lst.enter()
+            .appendHtml($('#tmpl-grid-item').html())
+                .style('left', d=> `${d.x * 10}%`)
+                .style('top', d=> `${d.y * 10}%`)
+                .style('width', '10%')
+                .style('height', '10%')
+                .merge(lst);
+
+        lst.attr('data-d', d=> JSON.stringify(d));
+
+        lst.select('.grid-inset')
+            .style('background', d=> ['#444', '#400', '#040', '#008', '#044',
+                                    '#440', '#404', '#840', '#084', '#048'][d.v]);
+    }
+
+    // Register for matrix updates
+    xx.onEvent(pageId, 'matrixUpdate', {}, (msg)=>
+    {
+        console.log(msg);
+        if (msg.m)
+            updateGrid(msg.m);
+    });
+
+    // When a matrix item is clicked
+    $('#grid').on("click", ".grid-item", function(ev)
+    {
+        let $e = $(ev.target);
+        if (!$e.hasClass('grid-item'))
+            $e = $e.parents('.grid-item');
+
+        let d = JSON.parse($e.attr('data-d'));
+        if (d)
+            xx.msg(pageId, '/api/incMatrix', {x: d.x, y: d.y}, (msg)=>
+            {
+                console.log(msg);
+                if (msg.m)
+                    updateGrid(msg.m);
+            });
+
+        return false;
+    });
+
+</script>

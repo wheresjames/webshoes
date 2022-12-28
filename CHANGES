@@ -1,0 +1,7 @@
+
+# v0.1.5 - 2022-12-27
+
+ [+] Grabbing variables from POST
+ [+] Directory serving
+ [+] Added example: ./test/site.py
+ [+] Added javascript ws connection file ./webshoes/web/webshoes.js

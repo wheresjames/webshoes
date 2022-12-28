@@ -1,4 +1,5 @@
 
+import os
 import time
 import json
 import inspect
@@ -7,12 +8,16 @@ import threading
 import aiohttp
 from aiohttp import web, WSCloseCode
 import asyncio
+import mimetypes
 
 import threadmsg as tm
 import propertybag as pb
-import sparen
-Log = sparen.log
 
+try:
+    import sparen
+    Log = sparen.log
+except Exception as e:
+    Log = print
 
 class WebShoesApp():
 
@@ -228,6 +233,43 @@ class WebShoesApp():
                     Log(f'Removing event target: {uid}')
                 del v['cb'][uid]
 
+    ''' Send files from directory
+        @param [in] ctx     - Calling context variables
+        @param [in] q       - Query variables
+    '''
+    @staticmethod
+    async def serveFolder(ctx, q):
+
+        # Root folder must exist
+        if not q._.root or not os.path.isdir(q._.root):
+            return web.Response(text='Not Found', status=404)
+
+        # Parse the path
+        p = ctx.req.path.split('/')
+        while len(p) and not p[0]:
+            p = p[1:]
+        fname = '/'.join(p[1:])
+
+        # Find a file with this name
+        p = os.path.join(q._.root, fname)
+        if not os.path.isfile(p):
+            if q._.defpage:
+                p = os.path.join(p, q._.defpage)
+                if os.path.isfile(p):
+                    return web.HTTPSeeOther(os.path.join(ctx.req.path, q._.defpage))
+            return web.Response(text='Not Found', status=404)
+
+        # Try to put the correct mime type
+        mime = mimetypes.guess_type(p)[0]
+        if not mime:
+            mime = 'text/plain'
+
+        # If verbose is set
+        if ctx.opts.verbose:
+            Log(f'[{mime}] {p}')
+
+        return web.FileResponse(p, headers={"Content-Type":mime})
+
 
     ''' Called to handle a websocket message
         @param [in] req     - The original websocket request object
@@ -296,6 +338,15 @@ class WebShoesApp():
                                 p = cmd.split('/')
                                 while len(p) and not p[0]:
                                     p = p[1:]
+
+                                # Bad handler?
+                                if 0 >= len(p):
+                                    Log(f'Bad handler: {cmd}')
+                                    continue
+
+                                # Is this our handler?
+                                if p[0] != h['sub']:
+                                    continue
 
                                 # Skip sub path if needed
                                 if 1 < len(p) and h['sub'] and p[0] == h['sub']:
@@ -399,14 +450,29 @@ class WebShoesApp():
             p[1] = '*'
 
         # Find function
+        params = {}
         f = h['fm'][p[1]]
         if not callable(f):
-            raise Exception(f'No callable handler for {req.path}')
+            if isinstance(f, dict):
+                params = f
+                f = self.serveFolder
+            else:
+                raise Exception(f'No callable handler for {req.path}')
 
-        # Get parameters
+        # GET parameters
         q = {}
         if 0 < len(req.query):
             q = dict(req.query)
+
+        # POST parameters
+        if req.body_exists:
+            m = await req.post()
+            for k in set(m.keys()):
+                q[k] = m[k]
+
+        # Pass on object properties if any
+        if params:
+            q['_'] = pb.Bag(params)
 
         # Context for user functions
         ctx = pb.Bag({'p': req.path, 'req': req, 'opts': self.opts, 'wsa': self})

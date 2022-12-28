@@ -13,5 +13,8 @@ def loadConfig(fname):
                 globals()["__%s__"%k] = " ".join(parts).strip()
                 globals()["__info__"][k] = " ".join(parts).strip()
 
-loadConfig(os.path.join(os.path.dirname(__file__), 'PROJECT.txt'))
+def libPath(p):
+    return os.path.join(os.path.dirname(__file__), p) if p else os.path.dirname(__file__)
+
+loadConfig(libPath('PROJECT.txt'))
 
